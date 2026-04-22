@@ -523,10 +523,10 @@ if menu == "🔍 スカウティング比較":
     f_col1, f_col2 = st.columns(2)
     with f_col1:
         team_opts = ["All"] + (clean_sorted(df_f['player_team']) if 'player_team' in df_f.columns else [])
-        f_team = st.selectbox("\U0001f535 \u30c1\u30fc\u30e0\u3067\u7d5e\u308a\u8fbc\u307f", team_opts)
+        f_team = st.selectbox("チームで絞り込み", team_opts)
     with f_col2:
         role_opts = ["All"] + (['Duelist','Initiator','Controller','Sentinel'] if 'role' in df_f.columns else [])
-        f_role = st.selectbox("\U0001f3ad \u30ed\u30fc\u30eb\u3067\u7d5e\u308a\u8fbc\u307f", role_opts, format_func=lambda x: rja(x) if x != 'All' else 'All')
+        f_role = st.selectbox("ロールで絞り込み", role_opts, format_func=lambda x: rja(x) if x != 'All' else 'All')
     filtered_pool = df_f.copy()
     if f_team != "All" and 'player_team' in filtered_pool.columns:
         filtered_pool = filtered_pool[filtered_pool['player_team'] == f_team]
