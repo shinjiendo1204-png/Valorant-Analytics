@@ -160,6 +160,22 @@ def html_table(rows: list[dict], cols: list[tuple], max_rows: int = 50) -> str:
 # ══════════════════════════════════════════════════════════
 # データ前処理
 # ══════════════════════════════════════════════════════════
+# --- Map name -> Japanese (must be defined before process_data) ---
+MAP_JA = {
+    'Abyss':    'アビス',
+    'Ascent':   'アセント',
+    'Bind':     'バインド',
+    'Breeze':   'ブリーズ',
+    'Corrode':  'カロード',
+    'Fracture': 'フラクチャー',
+    'Haven':    'ヘイブン',
+    'Icebox':   'アイスボックス',
+    'Lotus':    'ロータス',
+    'Pearl':    'パール',
+    'Split':    'スプリット',
+    'Sunset':   'サンセット',
+}
+
 # --- Agent->Role mapping (must be defined before process_data) ---
 AGENT_ROLES = {
     'Jett':'Duelist','Reyna':'Duelist','Raze':'Duelist','Phoenix':'Duelist',
@@ -222,6 +238,9 @@ AGENT_JA = {
     'Veto':     'ヴィトー',
 }
 
+def mja(map_name: str) -> str:
+    return MAP_JA.get(map_name, map_name)
+
 def rja(role: str) -> str:
     """ロールをカタカナ表示名に変換"""
     return ROLE_JA.get(role, role)
@@ -263,6 +282,10 @@ def process_data(df_raw: pd.DataFrame) -> pd.DataFrame:
     if 'game_id' not in df.columns and 'match_id' in df.columns:
         map_col = df['map_name'].astype(str) if 'map_name' in df.columns else pd.Series([''] * len(df), index=df.index)
         df['game_id'] = df['match_id'].astype(str) + '_' + map_col.str.strip()
+
+    # --- map_name をカタカナ化 ---
+    if 'map_name' in df.columns:
+        df['map_name'] = df['map_name'].apply(lambda x: MAP_JA.get(str(x).strip(), str(x).strip()))
 
     # --- Dateがない場合は yearから代用日付を作成 ---
     if 'Date' not in df.columns and 'year' in df.columns:
