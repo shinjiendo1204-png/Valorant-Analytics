@@ -16,7 +16,7 @@ import numpy as np
 st.set_page_config(
     layout="wide",
     page_title="VCJ Analytics Dashboard",
-    page_icon="🎯",
+    page_icon="📊",
     initial_sidebar_state="expanded",
 )
 
@@ -333,8 +333,8 @@ def load_csv(path: str) -> pd.DataFrame:
 st.sidebar.markdown("""
 <div style='padding:12px 0 8px 0'>
     <div style='font-size:10px;color:#8899aa;text-transform:uppercase;
-                letter-spacing:2px;margin-bottom:2px'>Valorant Esports</div>
-    <div style='font-size:18px;font-weight:700;color:white'>Valorant Analytics for VCJ</div>
+                letter-spacing:2px;margin-bottom:2px'>Valorant</div>
+    <div style='font-size:18px;font-weight:700;color:white'>Analytics for VCJ</div>
 </div>
 """, unsafe_allow_html=True)
 st.sidebar.markdown("---")
