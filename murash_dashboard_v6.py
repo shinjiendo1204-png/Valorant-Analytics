@@ -301,59 +301,75 @@ def process_data(df_raw: pd.DataFrame) -> pd.DataFrame:
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 
 def find_local_csvs():
-    return sorted([
-        f for f in os.listdir(WORKSPACE)
-        if f.endswith('.csv') and not f.startswith('.')
-    ])
+    pass  # replaced by discover_leagues
 
 
-def load_and_tag(file_obj_or_path, league_tag: str = '') -> pd.DataFrame:
-    """CSVを読み込み、league列を付与して返す"""
-    if isinstance(file_obj_or_path, str):
-        df = pd.read_csv(file_obj_or_path)
-    else:
-        df = pd.read_csv(file_obj_or_path)
-    # league列が無ければタグを付与、あればそのまま
+def discover_leagues() -> dict:
+    """CSVをスキャンし {league_name: [path, ...]} を返す"""
+    result = {}
+    for fname in sorted(os.listdir(WORKSPACE)):
+        if not fname.endswith('.csv') or fname.startswith('.'):
+            continue
+        path = os.path.join(WORKSPACE, fname)
+        try:
+            sample = pd.read_csv(path, nrows=1)
+            lname = str(sample['league'].iloc[0]).strip() if 'league' in sample.columns else ''
+            if not lname or lname in ('nan', ''):
+                lname = fname.replace('.csv', '')
+        except Exception:
+            lname = fname.replace('.csv', '')
+        result.setdefault(lname, []).append(path)
+    return result
+
+
+def load_csv(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path)
     if 'league' not in df.columns or df['league'].astype(str).str.strip().eq('').all():
-        df['league'] = league_tag
+        df['league'] = os.path.basename(path).replace('.csv', '')
     return df
 
 
-# ─── サイドバー: データ管理 ──────────────────────────────
-st.sidebar.markdown("## VCJ Analytics Dashboard")
+# ── Sidebar ──────────────────────────────────────────────
+st.sidebar.markdown("""
+<div style='padding:12px 0 8px 0'>
+    <div style='font-size:10px;color:#8899aa;text-transform:uppercase;
+                letter-spacing:2px;margin-bottom:2px'>Valorant Esports</div>
+    <div style='font-size:18px;font-weight:700;color:white'>Valorant Analytics for VCJ</div>
+</div>
+""", unsafe_allow_html=True)
 st.sidebar.markdown("---")
-st.sidebar.markdown("### データ管理")
 
-local_csvs = find_local_csvs()
-frames = []
+league_dict = discover_leagues()
+if not league_dict:
+    st.markdown("""<div style='background:#1a1d26;border-radius:10px;padding:40px;text-align:center;'>
+    <h2 style='color:white'>CSVが見つかりません</h2>
+    <p style='color:#888'>ダッシュボードと同じフォルダにCSVを配置してください</p></div>""",
+                  unsafe_allow_html=True)
+    st.stop()
 
-if local_csvs:
-    selected_locals = st.sidebar.multiselect(
-        "ローカルCSVを選択",
-        local_csvs,
-        default=local_csvs[:1],
-        help="workspaceフォルダ内のCSVを選択（複数可）"
-    )
-    for fname in selected_locals:
-        tag = st.sidebar.text_input(f"Leagueタグ: {fname}", value=fname.replace('.csv', ''), key=f"tag_{fname}")
-        frames.append(load_and_tag(os.path.join(WORKSPACE, fname), tag))
-
-uploaded_files = st.sidebar.file_uploader(
-    "追加CSVをアップロード（複数可）",
-    type=["csv"],
-    accept_multiple_files=True,
-    help="VCT・他リーグのCSVを追加して横断分析できます"
+all_league_names = sorted(league_dict.keys())
+st.sidebar.markdown(
+    "<div style='color:#8899aa;font-size:10px;text-transform:uppercase;"
+    "letter-spacing:1.2px;margin-bottom:4px'>LEAGUE</div>",
+    unsafe_allow_html=True
 )
-for uf in uploaded_files:
-    tag = st.sidebar.text_input(f"Leagueタグ: {uf.name}", value=uf.name.replace('.csv', ''), key=f"tag_up_{uf.name}")
-    frames.append(load_and_tag(uf, tag))
+selected_league_names = st.sidebar.multiselect(
+    "",
+    options=all_league_names,
+    default=all_league_names,
+    label_visibility='collapsed'
+)
+
+frames = []
+for lname in selected_league_names:
+    for path in league_dict[lname]:
+        frames.append(load_csv(path))
 
 if not frames:
     st.markdown("""<div style='background:#1a1d26;border-radius:10px;padding:40px;text-align:center;'>
-    <h2 style='color:white'>📂 CSVファイルを読み込んでください</h2>
-    <p style='color:#888'>サイドバーからローカルCSVを選択するか、アップロードしてください。<br>
-    vlr_scraper_v5.py で出力したCSVをそのまま使用できます。</p>
-    </div>""", unsafe_allow_html=True)
+    <h2 style='color:white'>リーグを選択してください</h2>
+    <p style='color:#888'>サイドバーの LEAGUE から選択してください</p></div>""",
+                  unsafe_allow_html=True)
     st.stop()
 
 raw_df = pd.concat(frames, ignore_index=True)
@@ -362,23 +378,11 @@ df = process_data(raw_df)
 if 'agents' in df.columns:
     df['role'] = df['agents'].apply(get_primary_role)
 
-# ─── サイドバー: フィルター ──────────────────────────────
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔍 フィルター")
 
-# League フィルター
-all_leagues = sorted([l for l in df['league'].unique() if l])
-if all_leagues:
-    sel_leagues = st.sidebar.multiselect("リーグ", all_leagues, default=all_leagues)
-    df_f = df[df['league'].isin(sel_leagues)] if sel_leagues else df
-else:
-    df_f = df
+# リーグは上部の選択で決まっているので、dfに對応する行のみを使用
+df_f = df[df['league'].isin(selected_league_names)] if selected_league_names else df
 
-# 年度フィルター
-all_years = sorted([y for y in df_f['year'].dropna().unique().tolist()], reverse=True)
-if all_years:
-    sel_years = st.sidebar.multiselect("年度", all_years, default=all_years)
-    df_f = df_f[df_f['year'].isin(sel_years)] if sel_years else df_f
+# YEAR filter removed - league selection is the only global filter
 
 # consistency_scoreが df_f になければ常に追加
 if 'consistency_score' in df.columns and 'consistency_score' not in df_f.columns:
@@ -388,15 +392,21 @@ if 'consistency_score' in df.columns and 'consistency_score' not in df_f.columns
     )
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"📊 {len(df_f):,} 行 | {df_f['player_name'].nunique()} 選手 | {df_f['league'].nunique()} リーグ")
+st.sidebar.markdown(
+    f"<div style='color:#8899aa;font-size:11px'>"
+    f"{df_f['player_name'].nunique()} 選手 &nbsp;|&nbsp; "
+    f"{df_f['league'].nunique()} リーグ</div>",
+    unsafe_allow_html=True
+)
 
 # ─── ナビゲーション ───────────────────────────────────────
-menu = st.sidebar.radio("メニュー", [
+st.sidebar.markdown("")
+menu = st.sidebar.radio("", [
     "🔍 スカウティング比較",
     "👤 選手個人レポート",
     "🗺️ マップ別分析",
     "📈 スタッツ別選手ランキング",
-])
+], label_visibility='collapsed')
 
 
 # ══════════════════════════════════════════════════════════
@@ -750,21 +760,9 @@ elif menu == "👤 選手個人レポート":
 
     st.caption(f"該当選手: {len(pr_players)}名")
 
-    col_p, col_l, col_y = st.columns([2,1,1])
-    with col_p:
-        player = st.selectbox("選手", pr_players if pr_players else clean_sorted(df_f['player_name']))
-    with col_l:
-        p_leagues = clean_sorted(df_f[df_f['player_name']==player]['league'])
-        sel_league = st.selectbox("リーグ", ["All"] + p_leagues)
-    with col_y:
-        p_years = sorted([y for y in df_f[df_f['player_name']==player]['year'].dropna().unique()], reverse=True)
-        sel_year = st.selectbox("年度", ["All"] + [str(y) for y in p_years])
+    player = st.selectbox("選手", pr_players if pr_players else clean_sorted(df_f['player_name']))
 
     p_df = df_f[df_f['player_name'] == player]
-    if sel_league != "All":
-        p_df = p_df[p_df['league'] == sel_league]
-    if sel_year != "All":
-        p_df = p_df[p_df['year'] == int(sel_year)]
 
     if p_df.empty:
         st.warning("データがありません"); st.stop()
