@@ -542,7 +542,6 @@ if 'rating' in df.columns and 'consistency_score' not in df.columns:
 if menu == "🔍 スカウティング比較":
     st.markdown('<div class="section-title">スカウティング比較</div>', unsafe_allow_html=True)
 
-    # -- team / role filter --
 f_col1, f_col2 = st.columns(2)
 with f_col1:
     team_opts = ["All"] + (clean_sorted(df_f['player_team']) if 'player_team' in df_f.columns else [])
@@ -577,12 +576,12 @@ selected_players = st.multiselect(
     max_selections=5,
     key='scout_selected'
 )
-# ▲▲▲ 修正ここまで ▲▲▲
-    if not selected_players:
-        st.markdown("""<div style="background:#1a1d26;border-radius:10px;padding:30px;text-align:center;color:#888;">
-        <h3>比較したい選手を選んでください</h3>
-        <p>チーム・ロールで絞り込んでから選ぶと便利です</p></div>""", unsafe_allow_html=True)
-        st.stop()
+
+if not selected_players:
+    st.markdown("""<div style="background:#1a1d26;border-radius:10px;padding:30px;text-align:center;color:#888;">
+    <h3>比較したい選手を選んでください</h3>
+    <p>チーム・ロールで絞り込んでから選ぶと便利です</p></div>""", unsafe_allow_html=True)
+    st.stop()
 
 
     st.markdown("<h3 style='color:white'>総合スコアカード</h3>", unsafe_allow_html=True)
