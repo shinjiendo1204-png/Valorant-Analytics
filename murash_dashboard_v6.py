@@ -543,22 +543,41 @@ if menu == "🔍 スカウティング比較":
     st.markdown('<div class="section-title">スカウティング比較</div>', unsafe_allow_html=True)
 
     # -- team / role filter --
-    f_col1, f_col2 = st.columns(2)
-    with f_col1:
-        team_opts = ["All"] + (clean_sorted(df_f['player_team']) if 'player_team' in df_f.columns else [])
-        f_team = st.selectbox("チームで絞り込み", team_opts)
-    with f_col2:
-        role_opts = ["All"] + (['Duelist','Initiator','Controller','Sentinel'] if 'role' in df_f.columns else [])
-        f_role = st.selectbox("ロールで絞り込み", role_opts, format_func=lambda x: rja(x) if x != 'All' else 'All')
-    filtered_pool = df_f.copy()
-    if f_team != "All" and 'player_team' in filtered_pool.columns:
-        filtered_pool = filtered_pool[filtered_pool['player_team'] == f_team]
-    if f_role != "All" and 'role' in filtered_pool.columns:
-        filtered_pool = filtered_pool[filtered_pool['role'] == f_role]
-    pool_players = clean_sorted(filtered_pool['player_name'])
-    st.caption(f"\u8a66\u5408\u6570\u30fb\u30ea\u30fc\u30b0\u30d5\u30a3\u30eb\u30bf\u30fc\u5f8c\u306e\u8a72\u5f53\u9078\u624b: {len(pool_players)}\u540d")
-    selected_players = st.multiselect("比較する選手を選択（最大5名）", pool_players, max_selections=5)
+f_col1, f_col2 = st.columns(2)
+with f_col1:
+    team_opts = ["All"] + (clean_sorted(df_f['player_team']) if 'player_team' in df_f.columns else [])
+    f_team = st.selectbox("チームで絞り込み", team_opts)
+with f_col2:
+    role_opts = ["All"] + (['Duelist','Initiator','Controller','Sentinel'] if 'role' in df_f.columns else [])
+    f_role = st.selectbox("ロールで絞り込み", role_opts, format_func=lambda x: rja(x) if x != 'All' else 'All')
 
+filtered_pool = df_f.copy()
+if f_team != "All" and 'player_team' in filtered_pool.columns:
+    filtered_pool = filtered_pool[filtered_pool['player_team'] == f_team]
+if f_role != "All" and 'role' in filtered_pool.columns:
+    filtered_pool = filtered_pool[filtered_pool['role'] == f_role]
+pool_players = clean_sorted(filtered_pool['player_name'])
+st.caption(f"試合数・リーグフィルター後の該当選手: {len(pool_players)}名")
+
+# セッションステートで選択済み選手を保持
+if 'scout_selected' not in st.session_state:
+    st.session_state['scout_selected'] = []
+
+# 全データに存在する選手に限定しつつ、選択済みを保持
+all_players = set(clean_sorted(df_f['player_name']))
+preserved = [p for p in st.session_state['scout_selected'] if p in all_players]
+
+# 選択済み選手をオプションの先頭に追加（フィルター外でも消えない）
+combined_options = list(dict.fromkeys(preserved + pool_players))
+
+selected_players = st.multiselect(
+    "比較する選手を選択（最大5名）",
+    combined_options,
+    default=preserved,
+    max_selections=5,
+    key='scout_selected'
+)
+# ▲▲▲ 修正ここまで ▲▲▲
     if not selected_players:
         st.markdown("""<div style="background:#1a1d26;border-radius:10px;padding:30px;text-align:center;color:#888;">
         <h3>比較したい選手を選んでください</h3>
